@@ -22,6 +22,7 @@ jobs:
           php-version: ${{ matrix.php }}
           tools: composer:v2
           coverage: none
+      - run: composer config repositories.identity-contracts vcs https://github.com/Novvor/identity-contracts
       - uses: ramsey/composer-install@v3
       - run: composer validate --strict
       - run: composer test
@@ -35,5 +36,6 @@ jobs:
           php-version: "8.4"
           tools: composer:v2
           coverage: none
+      - run: composer config repositories.identity-contracts vcs https://github.com/Novvor/identity-contracts
       - uses: ramsey/composer-install@v3
       - run: composer analyse
