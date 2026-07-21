@@ -27,6 +27,13 @@ final class AuthorizationRequestFactory
         return ['url' => $configuration->authorizationEndpoint.'?'.http_build_query($query), 'state' => $state, 'nonce' => $nonce, 'code_verifier' => $verifier];
     }
 
+    public function assertState(string $expectedState, string $returnedState): void
+    {
+        if ($expectedState === '' || $returnedState === '' || ! hash_equals($expectedState, $returnedState)) {
+            throw new OidcException('OIDC state does not match the authorization session.');
+        }
+    }
+
     private function randomToken(): string
     {
         return rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');

@@ -17,32 +17,43 @@ final class IdTokenValidator
     }
 
     /** @return array<string, mixed> */
+    /** @return array<string, mixed> */
     public function validate(OidcClientConfiguration $configuration, string $idToken, ?string $expectedNonce = null): array
     {
-        [$header, $payload] = $this->decodeUnsignedParts($idToken);
-        if (($header['alg'] ?? null) !== 'RS256' || ! is_string($header['kid'] ?? null) || $header['kid'] === '') {
-            throw new OidcException('ID token header does not use an allowed signing algorithm.');
-        }
-        if (rtrim((string) ($payload['iss'] ?? ''), '/') !== rtrim($configuration->issuer, '/')) {
-            throw new OidcException('ID token issuer does not match discovery.');
-        }
-        $audience = $payload['aud'] ?? null;
-        $audiences = is_string($audience) ? [$audience] : (is_array($audience) ? $audience : []);
-        if (! in_array($configuration->clientId, $audiences, true)) {
-            throw new OidcException('ID token audience does not match the client.');
-        }
-        if (count($audiences) > 1 && ($payload['azp'] ?? null) !== $configuration->clientId) {
-            throw new OidcException('ID token authorized party does not match the client.');
-        }
-        if (isset($payload['azp']) && $payload['azp'] !== $configuration->clientId) {
-            throw new OidcException('ID token authorized party does not match the client.');
+        $payload = $this->verifiedClaims($configuration, $idToken);
+        $this->assertIssuerAndAudience($configuration, $payload);
+        if (trim((string) ($payload['sub'] ?? '')) === '') {
+            throw new OidcException('ID token subject is missing.');
         }
         if ($expectedNonce !== null && ($expectedNonce === '' || ! hash_equals($expectedNonce, (string) ($payload['nonce'] ?? '')))) {
             throw new OidcException('ID token nonce does not match the authorization session.');
         }
         $now = time();
-        if (! is_numeric($payload['exp'] ?? null) || (int) $payload['exp'] <= $now || (isset($payload['nbf']) && (int) $payload['nbf'] > $now + 30) || (isset($payload['iat']) && (int) $payload['iat'] > $now + 30)) {
+        if (! is_numeric($payload['exp'] ?? null) || (int) $payload['exp'] <= $now || ! is_numeric($payload['iat'] ?? null) || (int) $payload['iat'] > $now + 30 || (isset($payload['nbf']) && (int) $payload['nbf'] > $now + 30)) {
             throw new OidcException('ID token time claims are invalid.');
+        }
+
+        return $payload;
+    }
+
+    /** @return array<string, mixed> */
+    public function validateLogoutToken(OidcClientConfiguration $configuration, string $logoutToken): array
+    {
+        $payload = $this->verifiedClaims($configuration, $logoutToken);
+        $this->assertIssuerAndAudience($configuration, $payload);
+        if (! is_numeric($payload['iat'] ?? null) || (int) $payload['iat'] > time() + 30 || trim((string) ($payload['jti'] ?? '')) === '') {
+            throw new OidcException('Back-channel logout token time or identifier claims are invalid.');
+        }
+
+        return $payload;
+    }
+
+    /** @return array<string, mixed> */
+    private function verifiedClaims(OidcClientConfiguration $configuration, string $token): array
+    {
+        $header = $this->decodeHeader($token);
+        if (($header['alg'] ?? null) !== 'RS256' || ! is_string($header['kid'] ?? null) || $header['kid'] === '') {
+            throw new OidcException('JWT header does not use an allowed signing algorithm.');
         }
 
         $keys = $this->jwks($configuration->jwksUri, $configuration->httpTimeoutSeconds, false);
@@ -56,14 +67,31 @@ final class IdTokenValidator
             throw new OidcException('ID token signing key is unknown.');
         }
         try {
-            JWT::decode($idToken, $key);
+            $payload = (array) JWT::decode($token, $key);
         } catch (\Throwable $exception) {
-            throw new OidcException('ID token signature is invalid.', 0, $exception);
+            throw new OidcException('JWT signature is invalid.', 0, $exception);
         }
 
         return $payload;
     }
 
+    /** @param array<string, mixed> $payload */
+    private function assertIssuerAndAudience(OidcClientConfiguration $configuration, array $payload): void
+    {
+        if (rtrim((string) ($payload['iss'] ?? ''), '/') !== rtrim($configuration->issuer, '/')) {
+            throw new OidcException('JWT issuer does not match discovery.');
+        }
+        $audience = $payload['aud'] ?? null;
+        $audiences = is_string($audience) ? [$audience] : (is_array($audience) ? $audience : []);
+        if (! in_array($configuration->clientId, $audiences, true)) {
+            throw new OidcException('JWT audience does not match the client.');
+        }
+        if ((count($audiences) > 1 || isset($payload['azp'])) && ($payload['azp'] ?? null) !== $configuration->clientId) {
+            throw new OidcException('JWT authorized party does not match the client.');
+        }
+    }
+
+    /** @return array<string, mixed> */
     /** @return array<string, mixed> */
     private function jwks(string $uri, int $timeoutSeconds, bool $refresh): array
     {
@@ -84,7 +112,8 @@ final class IdTokenValidator
     }
 
     /** @return array{0: array<string, mixed>, 1: array<string, mixed>} */
-    private function decodeUnsignedParts(string $token): array
+    /** @return array<string, mixed> */
+    private function decodeHeader(string $token): array
     {
         $parts = explode('.', $token);
         if (count($parts) !== 3) {
@@ -95,11 +124,10 @@ final class IdTokenValidator
             return json_decode((string) base64_decode(strtr($value, '-_', '+/'), true), true);
         };
         $header = $decode($parts[0]);
-        $payload = $decode($parts[1]);
-        if (! is_array($header) || ! is_array($payload)) {
-            throw new OidcException('ID token is malformed.');
+        if (! is_array($header)) {
+            throw new OidcException('JWT is malformed.');
         }
 
-        return [$header, $payload];
+        return $header;
     }
 }

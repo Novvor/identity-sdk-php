@@ -1,6 +1,8 @@
 # Security Policy
 
-Report vulnerabilities privately to the Novvor security team. Do not open public
-issues containing tokens, credentials, signed assertions, or user data.
+Report vulnerabilities privately through GitHub's private vulnerability reporting
+for this repository. Do not open public issues containing tokens, credentials,
+signed assertions, or user data.
 
-Releases require review, secret scanning, and an immutable version tag.
+Supported releases are the latest minor release of the current major line.
+Releases require review, automated tests, secret scanning, and an immutable tag.

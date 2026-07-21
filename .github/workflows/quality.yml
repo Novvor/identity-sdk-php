@@ -1,4 +1,4 @@
-name: Package quality
+name: Quality
 
 on:
   pull_request:
@@ -9,7 +9,24 @@ permissions:
   contents: read
 
 jobs:
-  validate:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["8.2", "8.3", "8.4", "8.5"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2
+          coverage: none
+      - uses: ramsey/composer-install@v3
+      - run: composer validate --strict
+      - run: composer test
+      - run: composer audit
+  static-analysis:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,6 +34,6 @@ jobs:
         with:
           php-version: "8.4"
           tools: composer:v2
-      - run: composer validate --strict
-      - run: find src tests -name "*.php" -print0 | xargs -0 -n1 php -l
-      - run: php tests/smoke.php
+          coverage: none
+      - uses: ramsey/composer-install@v3
+      - run: composer analyse

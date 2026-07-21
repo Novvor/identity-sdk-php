@@ -2,12 +2,16 @@
     "name": "novvor/identity-sdk-php",
     "description": "Novvor Cloud Identity relying-party SDK for confidential server-side PHP applications.",
     "type": "library",
-    "license": "proprietary",
+    "license": "Apache-2.0",
     "require": {
         "php": "^8.2",
         "firebase/php-jwt": "^7.0",
         "guzzlehttp/guzzle": "^7.0",
         "novvor/identity-contracts": "^1.0"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^2.1",
+        "phpunit/phpunit": "^11.5"
     },
     "autoload": {
         "psr-4": {
@@ -17,6 +21,7 @@
     "minimum-stability": "stable",
     "prefer-stable": true,
     "scripts": {
-        "test": "php tests/smoke.php"
+        "analyse": "phpstan analyse --no-progress",
+        "test": "phpunit"
     }
 }
