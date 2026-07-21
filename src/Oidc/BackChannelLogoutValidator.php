@@ -18,7 +18,10 @@ final class BackChannelLogoutValidator
         $claims = $this->idTokens->validateLogoutToken($configuration, $logoutToken);
         $events = $claims['events'] ?? null;
         $logoutEvent = 'http://schemas.openid.net/event/backchannel-logout';
-        if (! is_array($events) || ! array_key_exists($logoutEvent, $events)) {
+        $hasLogoutEvent = is_array($events)
+            ? array_key_exists($logoutEvent, $events)
+            : ($events instanceof \stdClass && property_exists($events, $logoutEvent));
+        if (! $hasLogoutEvent) {
             throw new OidcException('JWT is not a back-channel logout token.');
         }
         if (trim((string) ($claims['sid'] ?? '')) === '' && trim((string) ($claims['sub'] ?? '')) === '') {

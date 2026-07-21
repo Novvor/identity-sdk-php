@@ -64,6 +64,19 @@ final class IdTokenValidatorTest extends TestCase
         (new BackChannelLogoutValidator($this->validator()))->validate($this->configuration(), $this->token($claims));
     }
 
+    public function test_validates_backchannel_logout_with_json_object_events_claim(): void
+    {
+        $claims = $this->baseClaims() + [
+            'jti' => 'logout-1', 'sid' => 'session-1',
+            'events' => ['http://schemas.openid.net/event/backchannel-logout' => new \stdClass()],
+        ];
+
+        $validated = (new BackChannelLogoutValidator($this->validator()))
+            ->validate($this->configuration(), $this->token($claims));
+
+        self::assertSame('session-1', $validated['sid']);
+    }
+
     private function validator(): IdTokenValidator
     {
         $handler = new MockHandler([new Response(200, ['Content-Type' => 'application/json'], json_encode(['keys' => [$this->jwk]], JSON_THROW_ON_ERROR))]);
