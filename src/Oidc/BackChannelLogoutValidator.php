@@ -15,7 +15,7 @@ final class BackChannelLogoutValidator
             throw new OidcException('Back-channel logout token is required.');
         }
 
-        $claims = $this->idTokens->validate($configuration, $logoutToken);
+        $claims = $this->idTokens->validateLogoutToken($configuration, $logoutToken);
         $events = $claims['events'] ?? null;
         $logoutEvent = 'http://schemas.openid.net/event/backchannel-logout';
         if (! is_array($events) || ! array_key_exists($logoutEvent, $events)) {
@@ -23,6 +23,9 @@ final class BackChannelLogoutValidator
         }
         if (trim((string) ($claims['sid'] ?? '')) === '' && trim((string) ($claims['sub'] ?? '')) === '') {
             throw new OidcException('Back-channel logout token is missing sid and sub.');
+        }
+        if (array_key_exists('nonce', $claims)) {
+            throw new OidcException('Back-channel logout token must not contain a nonce.');
         }
 
         return $claims;
