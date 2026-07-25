@@ -19,6 +19,15 @@ token validator. Never expose a client secret or token in browser code.
 
 The administrative API is intentionally excluded from this package.
 
+## Transport and correlation
+
+All discovery, token, and JWKS requests enforce certificate and hostname
+verification, reject HTTP redirects, and use bounded connect/read timeouts.
+Callers may pass a safe correlation identifier as the optional final argument
+to `discover`, `exchange`, and ID-token validation methods; the SDK propagates
+it as `X-Correlation-ID`. The SDK rejects malformed values and never logs
+authorization codes, client secrets, or tokens.
+
 ## Security
 
 Only explicit HTTPS endpoints are accepted. JWT signing is pinned to RS256, keys
