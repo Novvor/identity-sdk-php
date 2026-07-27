@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.2.0 - Unreleased
+## 1.2.0 - 2026-07-27
 
 - Add confidential workload client-credentials issuance.
 - Add strict workload access-token validation for issuer, audience, client,

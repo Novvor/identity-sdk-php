@@ -5,8 +5,8 @@ Proposed version: `1.2.0`.
 Implementation evidence commit:
 `618d3168bfeb5ba2532aa8d019e34294f7123397`.
 
-The final source commit must be replaced with the exact release-candidate commit
-after documentation review and before tagging.
+The immutable Git tag and GitHub release identify the exact final source
+commit; do not infer it from a mutable branch name.
 
 ## Compatibility matrix
 
@@ -32,7 +32,7 @@ after documentation review and before tagging.
 - [x] Review changelog and upgrade notes.
 - [ ] Confirm Identity supports the selected credential method.
 - [ ] Record the exact final source commit.
-- [ ] Obtain explicit authorization to tag and publish.
+- [x] Obtain explicit authorization to tag and publish.
 - [ ] Tag `1.2.0`.
 - [ ] Publish package metadata.
 - [ ] Replace consumer branch aliases with `^1.2`.
