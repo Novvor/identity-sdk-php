@@ -28,5 +28,36 @@ final class ClientCredentialsClientTest extends TestCase
         $this->expectException(OidcException::class);
         (new ClientCredentialsClient($client))->issue($this->config());
     }
+
+    public function test_it_can_prepare_private_key_jwt_without_sending_a_secret(): void
+    {
+        $privateKey = '';
+        $resource = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+        $this->assertNotFalse($resource);
+        $this->assertTrue(openssl_pkey_export($resource, $privateKey));
+        $history = [];
+        $stack = HandlerStack::create(new MockHandler([new Response(200, [], json_encode(['access_token' => 'token', 'token_type' => 'Bearer', 'expires_in' => 60], JSON_THROW_ON_ERROR))]));
+        $stack->push(\GuzzleHttp\Middleware::history($history));
+        $configuration = new WorkloadClientConfiguration(
+            'https://identity.example.test',
+            'orbit-intelligence',
+            null,
+            'https://identity.example.test/oauth/token',
+            'https://identity.example.test/.well-known/jwks.json',
+            'enix-platform',
+            ['orbit.execute'],
+            credentialMethod: 'private_key_jwt',
+            privateKey: $privateKey,
+            privateKeyId: 'orbit-key-1',
+        );
+
+        (new ClientCredentialsClient(new Client(['handler' => $stack])))->issue($configuration);
+        parse_str((string) $history[0]['request']->getBody(), $body);
+
+        $this->assertArrayNotHasKey('client_secret', $body);
+        $this->assertSame('urn:ietf:params:oauth:client-assertion-type:jwt-bearer', $body['client_assertion_type']);
+        $this->assertIsString($body['client_assertion']);
+        $this->assertCount(3, explode('.', $body['client_assertion']));
+    }
     private function config(): WorkloadClientConfiguration { return new WorkloadClientConfiguration('https://identity.example.test', 'orbit-intelligence', 'secret', 'https://identity.example.test/oauth/token', 'https://identity.example.test/.well-known/jwks.json', 'enix-platform', ['orbit.execute']); }
 }

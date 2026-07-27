@@ -19,6 +19,17 @@ token validator. Never expose a client secret or token in browser code.
 
 The administrative API is intentionally excluded from this package.
 
+## Workload authentication
+
+`ClientCredentialsClient` issues server-to-server access tokens using the
+currently supported `client_secret_post` method. `WorkloadAccessTokenValidator`
+validates the token at the receiving service and refreshes cached JWKS once for
+an unknown `kid`.
+
+`WorkloadClientConfiguration` can prepare `private_key_jwt`, but consumers must
+not enable that method unless the Identity server advertises and provisions it.
+The SDK does not imply that server-side support exists.
+
 ## Transport and correlation
 
 All discovery, token, and JWKS requests enforce certificate and hostname
