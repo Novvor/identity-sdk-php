@@ -27,4 +27,9 @@ Existing interactive OIDC APIs remain compatible. Workload callers should:
 5. pass the required tenant ID to validation only when the workload token is
    tenant-bound.
 
+Consumers may feature-detect the `credentialMethod` constructor parameter
+during the pre-release transition. They must fail closed instead of silently
+falling back to `client_secret_post` when `private_key_jwt` was explicitly
+selected.
+
 No access token, client secret or private key may be logged.
