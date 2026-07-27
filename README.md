@@ -19,6 +19,26 @@ token validator. Never expose a client secret or token in browser code.
 
 The administrative API is intentionally excluded from this package.
 
+## Workload authentication
+
+`ClientCredentialsClient` issues server-to-server access tokens using the
+currently supported `client_secret_post` method. `WorkloadAccessTokenValidator`
+validates the token at the receiving service and refreshes cached JWKS once for
+an unknown `kid`.
+
+`WorkloadClientConfiguration` can prepare `private_key_jwt`, but consumers must
+not enable that method unless the Identity server advertises and provisions it.
+The SDK does not imply that server-side support exists.
+
+## Transport and correlation
+
+All discovery, token, and JWKS requests enforce certificate and hostname
+verification, reject HTTP redirects, and use bounded connect/read timeouts.
+Callers may pass a safe correlation identifier as the optional final argument
+to `discover`, `exchange`, and ID-token validation methods; the SDK propagates
+it as `X-Correlation-ID`. The SDK rejects malformed values and never logs
+authorization codes, client secrets, or tokens.
+
 ## Security
 
 Only explicit HTTPS endpoints are accepted. JWT signing is pinned to RS256, keys

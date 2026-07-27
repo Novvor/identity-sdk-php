@@ -10,7 +10,7 @@ final class AuthorizationCodeClient
     {
     }
 
-    public function exchange(OidcClientConfiguration $configuration, string $code, string $codeVerifier): OidcTokenSet
+    public function exchange(OidcClientConfiguration $configuration, string $code, string $codeVerifier, ?string $correlationId = null): OidcTokenSet
     {
         if ($code === '' || $codeVerifier === '') {
             throw new OidcException('Authorization code and PKCE verifier are required.');
@@ -29,10 +29,11 @@ final class AuthorizationCodeClient
 
         try {
             $response = $this->http->request('POST', $configuration->tokenEndpoint, [
-                'timeout' => $configuration->httpTimeoutSeconds,
-                'connect_timeout' => $configuration->httpTimeoutSeconds,
-                'http_errors' => false,
-                'headers' => ['Accept' => 'application/json'],
+                ...OidcHttpRequestOptions::strict(
+                    $configuration->httpTimeoutSeconds,
+                    ['Accept' => 'application/json'],
+                    $correlationId,
+                ),
                 'form_params' => $form,
             ]);
         } catch (\Throwable $exception) {

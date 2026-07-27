@@ -18,9 +18,9 @@ final class IdTokenValidator
 
     /** @return array<string, mixed> */
     /** @return array<string, mixed> */
-    public function validate(OidcClientConfiguration $configuration, string $idToken, ?string $expectedNonce = null): array
+    public function validate(OidcClientConfiguration $configuration, string $idToken, ?string $expectedNonce = null, ?string $correlationId = null): array
     {
-        $payload = $this->verifiedClaims($configuration, $idToken);
+        $payload = $this->verifiedClaims($configuration, $idToken, $correlationId);
         $this->assertIssuerAndAudience($configuration, $payload);
         if (trim((string) ($payload['sub'] ?? '')) === '') {
             throw new OidcException('ID token subject is missing.');
@@ -37,9 +37,9 @@ final class IdTokenValidator
     }
 
     /** @return array<string, mixed> */
-    public function validateLogoutToken(OidcClientConfiguration $configuration, string $logoutToken): array
+    public function validateLogoutToken(OidcClientConfiguration $configuration, string $logoutToken, ?string $correlationId = null): array
     {
-        $payload = $this->verifiedClaims($configuration, $logoutToken);
+        $payload = $this->verifiedClaims($configuration, $logoutToken, $correlationId);
         $this->assertIssuerAndAudience($configuration, $payload);
         if (! is_numeric($payload['iat'] ?? null) || (int) $payload['iat'] > time() + 30 || trim((string) ($payload['jti'] ?? '')) === '') {
             throw new OidcException('Back-channel logout token time or identifier claims are invalid.');
@@ -49,18 +49,18 @@ final class IdTokenValidator
     }
 
     /** @return array<string, mixed> */
-    private function verifiedClaims(OidcClientConfiguration $configuration, string $token): array
+    private function verifiedClaims(OidcClientConfiguration $configuration, string $token, ?string $correlationId): array
     {
         $header = $this->decodeHeader($token);
         if (($header['alg'] ?? null) !== 'RS256' || ! is_string($header['kid'] ?? null) || $header['kid'] === '') {
             throw new OidcException('JWT header does not use an allowed signing algorithm.');
         }
 
-        $keys = $this->jwks($configuration->jwksUri, $configuration->httpTimeoutSeconds, false);
+        $keys = $this->jwks($configuration->jwksUri, $configuration->httpTimeoutSeconds, false, $correlationId);
         $keySet = JWK::parseKeySet($keys);
         $kid = $header['kid'];
         if (! isset($keySet[$kid])) {
-            $keySet = JWK::parseKeySet($this->jwks($configuration->jwksUri, $configuration->httpTimeoutSeconds, true));
+            $keySet = JWK::parseKeySet($this->jwks($configuration->jwksUri, $configuration->httpTimeoutSeconds, true, $correlationId));
         }
         $key = $keySet[$kid] ?? null;
         if (! $key instanceof Key) {
@@ -93,13 +93,13 @@ final class IdTokenValidator
 
     /** @return array<string, mixed> */
     /** @return array<string, mixed> */
-    private function jwks(string $uri, int $timeoutSeconds, bool $refresh): array
+    private function jwks(string $uri, int $timeoutSeconds, bool $refresh, ?string $correlationId): array
     {
         if (! $refresh && isset($this->jwksByUri[$uri])) {
             return $this->jwksByUri[$uri];
         }
         try {
-            $response = $this->http->request('GET', $uri, ['timeout' => $timeoutSeconds, 'connect_timeout' => $timeoutSeconds, 'http_errors' => false]);
+            $response = $this->http->request('GET', $uri, OidcHttpRequestOptions::strict($timeoutSeconds, [], $correlationId));
         } catch (\Throwable $exception) {
             throw new OidcException('JWKS request failed.', 0, $exception);
         }

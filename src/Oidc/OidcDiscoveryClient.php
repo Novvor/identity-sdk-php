@@ -10,7 +10,7 @@ final class OidcDiscoveryClient
     {
     }
 
-    public function discover(string $issuer, int $timeoutSeconds = 5): OidcDiscoveryDocument
+    public function discover(string $issuer, int $timeoutSeconds = 5, ?string $correlationId = null): OidcDiscoveryDocument
     {
         $issuer = rtrim($issuer, '/');
         if (filter_var($issuer, FILTER_VALIDATE_URL) === false || parse_url($issuer, PHP_URL_SCHEME) !== 'https') {
@@ -18,12 +18,11 @@ final class OidcDiscoveryClient
         }
 
         try {
-            $response = $this->http->request('GET', $issuer.'/.well-known/openid-configuration', [
-                'timeout' => $timeoutSeconds,
-                'connect_timeout' => $timeoutSeconds,
-                'http_errors' => false,
-                'headers' => ['Accept' => 'application/json'],
-            ]);
+            $response = $this->http->request('GET', $issuer.'/.well-known/openid-configuration', OidcHttpRequestOptions::strict(
+                $timeoutSeconds,
+                ['Accept' => 'application/json'],
+                $correlationId,
+            ));
         } catch (\Throwable $exception) {
             throw new OidcException('OIDC discovery request failed.', 0, $exception);
         }
@@ -34,8 +33,14 @@ final class OidcDiscoveryClient
         }
 
         foreach (['authorization_endpoint', 'token_endpoint', 'jwks_uri'] as $field) {
-            if (! is_string($document[$field] ?? null) || $document[$field] === '') {
+            if (! is_string($document[$field] ?? null) || ! self::isHttpsUrl($document[$field])) {
                 throw new OidcException('OIDC discovery document is missing '.$field.'.');
+            }
+        }
+
+        foreach (['userinfo_endpoint', 'end_session_endpoint'] as $field) {
+            if (isset($document[$field]) && (! is_string($document[$field]) || ! self::isHttpsUrl($document[$field]))) {
+                throw new OidcException('OIDC discovery document contains an invalid '.$field.'.');
             }
         }
 
@@ -47,5 +52,10 @@ final class OidcDiscoveryClient
             userinfoEndpoint: is_string($document['userinfo_endpoint'] ?? null) ? $document['userinfo_endpoint'] : null,
             endSessionEndpoint: is_string($document['end_session_endpoint'] ?? null) ? $document['end_session_endpoint'] : null,
         );
+    }
+
+    private static function isHttpsUrl(string $url): bool
+    {
+        return filter_var($url, FILTER_VALIDATE_URL) !== false && parse_url($url, PHP_URL_SCHEME) === 'https';
     }
 }
