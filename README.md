@@ -36,6 +36,9 @@ Never infer high-assurance support from a successful login. Discover metadata,
 run `EnterpriseProfileValidator`, store the authorization transaction
 server-side, and process callbacks through `AuthorizationResponseProcessor`.
 See [the Laravel integration guide](docs/INTEGRATION_LARAVEL.md).
+The cross-package adoption audit and release gates are in
+[`docs/SDK_2_ADOPTION_AUDIT.md`](docs/SDK_2_ADOPTION_AUDIT.md) and
+[`docs/RELEASE_2_0_PLAN.md`](docs/RELEASE_2_0_PLAN.md).
 
 ## Workload authentication
 
