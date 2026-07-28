@@ -47,6 +47,10 @@ final class EnterpriseOidcProfileTest extends TestCase
         self::assertArrayHasKey('client_assertion', $body);
         self::assertArrayNotHasKey('client_secret', $body);
         self::assertSame('correlation-1', $request->getHeaderLine('X-Correlation-ID'));
+        $assertionJwt = $body['client_assertion'] ?? null;
+        self::assertIsString($assertionJwt);
+        [, $assertion] = $this->decode($assertionJwt);
+        self::assertSame('https://identity.example.com/oauth/par', $assertion['aud']);
     }
 
     public function test_rfc9207_requires_exact_issuer_and_state(): void
@@ -116,6 +120,24 @@ final class EnterpriseOidcProfileTest extends TestCase
             'https://identity.example.com/jwks', 'secret', 5, 'client_secret_post',
             profile: 'novvor-high-assurance-v1',
         );
+    }
+
+    public function test_high_assurance_profile_rejects_direct_authorization(): void
+    {
+        [$privateKey] = $this->rsaKey();
+        $this->expectException(OidcException::class);
+        (new AuthorizationRequestFactory())->create($this->configuration($privateKey));
+    }
+
+    public function test_high_assurance_profile_rejects_plain_callback(): void
+    {
+        [$privateKey] = $this->rsaKey();
+        $this->expectException(OidcException::class);
+        (new AuthorizationResponseProcessor())->process($this->configuration($privateKey), [
+            'code' => 'code-1',
+            'state' => 'state-1',
+            'iss' => 'https://identity.example.com',
+        ], 'state-1');
     }
 
     public function test_auto_authentication_keeps_v1_secret_compatibility(): void

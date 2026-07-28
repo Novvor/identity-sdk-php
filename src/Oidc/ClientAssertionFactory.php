@@ -6,7 +6,7 @@ use Firebase\JWT\JWT;
 
 final class ClientAssertionFactory
 {
-    public function create(OidcClientConfiguration $configuration, ?int $now = null): string
+    public function create(OidcClientConfiguration $configuration, ?int $now = null, ?string $audience = null): string
     {
         if ($configuration->clientAuthenticationMethod !== 'private_key_jwt') {
             throw new OidcException('Client is not configured for private_key_jwt.');
@@ -17,7 +17,7 @@ final class ClientAssertionFactory
         return JWT::encode([
             'iss' => $configuration->clientId,
             'sub' => $configuration->clientId,
-            'aud' => $configuration->tokenEndpoint,
+            'aud' => $audience ?? $configuration->tokenEndpoint,
             'iat' => $now,
             'nbf' => $now,
             'exp' => $now + 60,
@@ -26,7 +26,7 @@ final class ClientAssertionFactory
     }
 
     /** @param array<string, string> $form */
-    public function authenticate(OidcClientConfiguration $configuration, array &$form): void
+    public function authenticate(OidcClientConfiguration $configuration, array &$form, ?string $audience = null): void
     {
         $method = $configuration->clientAuthenticationMethod;
         if ($method === 'auto') {
@@ -43,6 +43,6 @@ final class ClientAssertionFactory
         }
 
         $form['client_assertion_type'] = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer';
-        $form['client_assertion'] = $this->create($configuration);
+        $form['client_assertion'] = $this->create($configuration, audience: $audience);
     }
 }

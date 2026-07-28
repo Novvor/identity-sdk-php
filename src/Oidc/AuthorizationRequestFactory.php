@@ -7,6 +7,10 @@ final class AuthorizationRequestFactory
     /** @return array{url: string, state: string, nonce: string, code_verifier: string} */
     public function create(OidcClientConfiguration $configuration, ?string $requiredAcr = null, ?int $maxAge = null): array
     {
+        if ($configuration->profile === 'novvor-high-assurance-v1') {
+            throw new OidcException('The high-assurance profile requires PAR; use transaction(), push(), and pushedAuthorizationUrl().');
+        }
+
         $transaction = $this->transaction($configuration, $requiredAcr, $maxAge);
 
         return [

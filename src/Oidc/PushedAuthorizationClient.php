@@ -21,7 +21,7 @@ final readonly class PushedAuthorizationClient
         }
 
         $form = array_map(static fn (string|int $value): string => (string) $value, $transaction->parameters);
-        (new ClientAssertionFactory())->authenticate($configuration, $form);
+        (new ClientAssertionFactory())->authenticate($configuration, $form, $endpoint);
 
         try {
             $response = $this->http->request('POST', $endpoint, [

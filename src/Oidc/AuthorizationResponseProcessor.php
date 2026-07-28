@@ -15,6 +15,9 @@ final readonly class AuthorizationResponseProcessor
         string $expectedState,
         ?string $correlationId = null,
     ): AuthorizationResponse {
+        if ($configuration->profile === 'novvor-high-assurance-v1' && ! is_string($parameters['response'] ?? null)) {
+            throw new OidcException('The high-assurance profile requires a JARM authorization response.');
+        }
         if (is_string($parameters['response'] ?? null)) {
             if ($this->jarm === null) {
                 throw new OidcException('JARM response received without a configured validator.');
