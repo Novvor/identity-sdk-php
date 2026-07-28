@@ -38,7 +38,7 @@ final class OidcDiscoveryClient
             }
         }
 
-        foreach (['userinfo_endpoint', 'end_session_endpoint'] as $field) {
+        foreach (['userinfo_endpoint', 'end_session_endpoint', 'pushed_authorization_request_endpoint'] as $field) {
             if (isset($document[$field]) && (! is_string($document[$field]) || ! self::isHttpsUrl($document[$field]))) {
                 throw new OidcException('OIDC discovery document contains an invalid '.$field.'.');
             }
@@ -51,11 +51,28 @@ final class OidcDiscoveryClient
             jwksUri: (string) $document['jwks_uri'],
             userinfoEndpoint: is_string($document['userinfo_endpoint'] ?? null) ? $document['userinfo_endpoint'] : null,
             endSessionEndpoint: is_string($document['end_session_endpoint'] ?? null) ? $document['end_session_endpoint'] : null,
+            pushedAuthorizationRequestEndpoint: is_string($document['pushed_authorization_request_endpoint'] ?? null) ? $document['pushed_authorization_request_endpoint'] : null,
+            responseModesSupported: self::stringList($document['response_modes_supported'] ?? []),
+            grantTypesSupported: self::stringList($document['grant_types_supported'] ?? []),
+            tokenEndpointAuthMethodsSupported: self::stringList($document['token_endpoint_auth_methods_supported'] ?? []),
+            dpopSigningAlgValuesSupported: self::stringList($document['dpop_signing_alg_values_supported'] ?? []),
+            authorizationResponseIssuerParameterSupported: ($document['authorization_response_iss_parameter_supported'] ?? false) === true,
+            metadata: $document,
         );
     }
 
     private static function isHttpsUrl(string $url): bool
     {
         return filter_var($url, FILTER_VALIDATE_URL) !== false && parse_url($url, PHP_URL_SCHEME) === 'https';
+    }
+
+    /** @return list<string> */
+    private static function stringList(mixed $value): array
+    {
+        if (! is_array($value) || ! array_is_list($value)) {
+            return [];
+        }
+
+        return array_values(array_filter($value, static fn (mixed $item): bool => is_string($item) && $item !== ''));
     }
 }
