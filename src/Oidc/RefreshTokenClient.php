@@ -28,29 +28,45 @@ final class RefreshTokenClient
             'client_id' => $configuration->clientId,
         ];
         (new ClientAssertionFactory())->authenticate($configuration, $form);
-        $headers = ['Accept' => 'application/json'];
-        if ($dpopKey !== null) {
-            $headers['DPoP'] = (new DpopProofFactory())->create($dpopKey, 'POST', $configuration->tokenEndpoint, nonce: $dpopNonce);
-        }
+        $nonce = $dpopNonce;
+        for ($attempt = 0; $attempt < 2; $attempt++) {
+            $headers = ['Accept' => 'application/json'];
+            if ($dpopKey !== null) {
+                $headers['DPoP'] = (new DpopProofFactory())->create($dpopKey, 'POST', $configuration->tokenEndpoint, nonce: $nonce);
+            }
 
-        try {
-            $response = $this->http->request('POST', $configuration->tokenEndpoint, [
-                ...OidcHttpRequestOptions::strict($configuration->httpTimeoutSeconds, $headers, $correlationId),
-                'form_params' => $form,
-            ]);
-        } catch (\Throwable $exception) {
-            throw new OidcException('OIDC refresh token request failed.', 0, $exception);
-        }
+            try {
+                $response = $this->http->request('POST', $configuration->tokenEndpoint, [
+                    ...OidcHttpRequestOptions::strict($configuration->httpTimeoutSeconds, $headers, $correlationId),
+                    'form_params' => $form,
+                ]);
+            } catch (\Throwable $exception) {
+                throw new OidcException('OIDC refresh token request failed.', 0, $exception);
+            }
 
-        $payload = json_decode((string) $response->getBody(), true);
-        if ($response->getStatusCode() < 200 || $response->getStatusCode() >= 300 || ! is_array($payload)) {
+            $payload = OAuthJsonResponse::decode((string) $response->getBody());
+            if ($response->getStatusCode() >= 200 && $response->getStatusCode() < 300 && $payload !== null) {
+                break;
+            }
+
+            $challengedNonce = $dpopKey === null ? null : DpopNonceChallenge::from($response, $payload, $nonce);
+            if ($attempt === 0 && $challengedNonce !== null) {
+                $nonce = $challengedNonce;
+
+                continue;
+            }
+
             throw new OAuthEndpointException(
                 'OIDC token endpoint rejected the refresh token.',
-                is_array($payload) && is_string($payload['error'] ?? null) ? $payload['error'] : null,
-                is_array($payload) && is_string($payload['error_description'] ?? null) ? $payload['error_description'] : null,
+                is_string($payload['error'] ?? null) ? $payload['error'] : null,
+                is_string($payload['error_description'] ?? null) ? $payload['error_description'] : null,
                 $response->getHeaderLine('X-Correlation-ID') ?: $correlationId,
                 $response->getHeaderLine('DPoP-Nonce') ?: null,
             );
+        }
+
+        if ($payload === null) {
+            throw new OidcException('OIDC token endpoint returned an invalid refresh response.');
         }
 
         $tokens = TokenEndpointResponse::tokenSet($payload, false);

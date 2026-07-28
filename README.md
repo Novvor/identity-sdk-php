@@ -32,6 +32,11 @@ The administrative API is intentionally excluded from this package.
 - `novvor-high-assurance-v1`: fail-closed profile requiring PAR, JARM,
   `private_key_jwt`, RFC 9207 issuer binding and a DPoP-bound access token.
 
+Token, refresh and UserInfo clients automatically answer one valid RFC 9449
+`use_dpop_nonce` challenge. Repeated, unchanged, malformed or oversized nonce
+challenges fail closed, so a broken server cannot create an unbounded retry
+loop.
+
 Never infer high-assurance support from a successful login. Discover metadata,
 run `EnterpriseProfileValidator`, store the authorization transaction
 server-side, and process callbacks through `AuthorizationResponseProcessor`.

@@ -184,6 +184,52 @@ final class EnterpriseOidcProfileTest extends TestCase
         self::assertNotSame('', $history[0]['request']->getHeaderLine('DPoP'));
     }
 
+    public function test_token_exchange_retries_one_valid_dpop_nonce_challenge(): void
+    {
+        [$privateKey, $jwk] = $this->rsaKey();
+        $history = [];
+        $stack = HandlerStack::create(new MockHandler([
+            new Response(400, ['DPoP-Nonce' => 'server-nonce'], '{"error":"use_dpop_nonce"}'),
+            new Response(200, [], '{"access_token":"access-1","id_token":"id-1","token_type":"DPoP","expires_in":300}'),
+        ]));
+        $stack->push(\GuzzleHttp\Middleware::history($history));
+
+        $tokens = (new \Novvor\IdentitySdk\Oidc\AuthorizationCodeClient(new Client(['handler' => $stack])))->exchange(
+            $this->configuration($privateKey),
+            'authorization-code',
+            str_repeat('v', 64),
+            dpopKey: new DpopKey($privateKey, $jwk, 'RS256'),
+        );
+
+        self::assertSame('access-1', $tokens->accessToken);
+        self::assertArrayHasKey(1, $history);
+        self::assertArrayNotHasKey(2, $history);
+        self::assertArrayNotHasKey('nonce', $this->dpopPayload($history[0]['request']->getHeaderLine('DPoP')));
+        self::assertSame('server-nonce', $this->dpopPayload($history[1]['request']->getHeaderLine('DPoP'))['nonce']);
+    }
+
+    public function test_refresh_rotation_retries_one_valid_dpop_nonce_challenge(): void
+    {
+        [$privateKey, $jwk] = $this->rsaKey();
+        $history = [];
+        $stack = HandlerStack::create(new MockHandler([
+            new Response(400, ['DPoP-Nonce' => 'refresh-nonce'], '{"error":"use_dpop_nonce"}'),
+            new Response(200, [], '{"access_token":"access-2","refresh_token":"refresh-2","token_type":"DPoP","expires_in":300}'),
+        ]));
+        $stack->push(\GuzzleHttp\Middleware::history($history));
+
+        $tokens = (new RefreshTokenClient(new Client(['handler' => $stack])))->rotate(
+            $this->configuration($privateKey),
+            'refresh-1',
+            dpopKey: new DpopKey($privateKey, $jwk, 'RS256'),
+        );
+
+        self::assertSame('refresh-2', $tokens->refreshToken);
+        self::assertArrayHasKey(1, $history);
+        self::assertArrayNotHasKey(2, $history);
+        self::assertSame('refresh-nonce', $this->dpopPayload($history[1]['request']->getHeaderLine('DPoP'))['nonce']);
+    }
+
     public function test_userinfo_binds_dpop_proof_and_checks_subject(): void
     {
         [$privateKey, $jwk] = $this->rsaKey();
@@ -204,6 +250,56 @@ final class EnterpriseOidcProfileTest extends TestCase
         self::assertSame('DPoP access-1', $history[0]['request']->getHeaderLine('Authorization'));
         self::assertNotSame('', $history[0]['request']->getHeaderLine('DPoP'));
         self::assertSame('correlation-userinfo', $history[0]['request']->getHeaderLine('X-Correlation-ID'));
+    }
+
+    public function test_userinfo_retries_one_valid_dpop_nonce_challenge(): void
+    {
+        [$privateKey, $jwk] = $this->rsaKey();
+        $history = [];
+        $stack = HandlerStack::create(new MockHandler([
+            new Response(401, ['DPoP-Nonce' => 'userinfo-nonce'], '{"error":"use_dpop_nonce"}'),
+            new Response(200, [], '{"sub":"user-1"}'),
+        ]));
+        $stack->push(\GuzzleHttp\Middleware::history($history));
+
+        $result = (new UserInfoClient(new Client(['handler' => $stack])))->fetch(
+            $this->configuration($privateKey),
+            'access-1',
+            'DPoP',
+            'user-1',
+            dpopKey: new DpopKey($privateKey, $jwk, 'RS256'),
+        );
+
+        self::assertSame('user-1', $result->subject);
+        self::assertArrayHasKey(1, $history);
+        self::assertArrayNotHasKey(2, $history);
+        self::assertSame('userinfo-nonce', $this->dpopPayload($history[1]['request']->getHeaderLine('DPoP'))['nonce']);
+    }
+
+    public function test_dpop_nonce_challenge_is_never_retried_more_than_once(): void
+    {
+        [$privateKey, $jwk] = $this->rsaKey();
+        $history = [];
+        $stack = HandlerStack::create(new MockHandler([
+            new Response(400, ['DPoP-Nonce' => 'nonce-1'], '{"error":"use_dpop_nonce"}'),
+            new Response(400, ['DPoP-Nonce' => 'nonce-2'], '{"error":"use_dpop_nonce"}'),
+        ]));
+        $stack->push(\GuzzleHttp\Middleware::history($history));
+
+        try {
+            (new RefreshTokenClient(new Client(['handler' => $stack])))->rotate(
+                $this->configuration($privateKey),
+                'refresh-1',
+                dpopKey: new DpopKey($privateKey, $jwk, 'RS256'),
+            );
+            self::fail('A repeated DPoP nonce challenge must fail closed.');
+        } catch (\Novvor\IdentitySdk\Oidc\OAuthEndpointException $exception) {
+            self::assertSame('use_dpop_nonce', $exception->oauthError);
+            self::assertSame('nonce-2', $exception->dpopNonce);
+        }
+
+        self::assertArrayHasKey(1, $history);
+        self::assertArrayNotHasKey(2, $history);
     }
 
     public function test_userinfo_rejects_subject_substitution(): void
@@ -297,6 +393,19 @@ final class EnterpriseOidcProfileTest extends TestCase
         $stack = HandlerStack::create(new MockHandler($responses));
 
         return new Client(['handler' => $stack]);
+    }
+
+    /** @return array<string, mixed> */
+    private function dpopPayload(string $proof): array
+    {
+        $parts = explode('.', $proof);
+        self::assertCount(3, $parts);
+        $decoded = base64_decode(strtr($parts[1], '-_', '+/'), true);
+        self::assertIsString($decoded);
+        $payload = json_decode($decoded, true, 512, JSON_THROW_ON_ERROR);
+        self::assertIsArray($payload);
+
+        return $payload;
     }
 
     /** @return array{0: array<string, mixed>, 1: array<string, mixed>} */

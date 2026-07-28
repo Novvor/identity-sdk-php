@@ -14,7 +14,7 @@
 | UserInfo | Implemented and tested | UserInfo endpoint and subject binding |
 | Token introspection | Implemented and tested | introspection endpoint and client authentication |
 | Token revocation | Implemented and tested | revocation endpoint and client authentication |
-| DPoP nonce automatic retry | Deferred | server nonce challenge metadata and runtime evidence |
+| DPoP nonce challenge | Implemented and tested | RFC 9449 `use_dpop_nonce` plus `DPoP-Nonce` |
 | Back-channel logout | Implemented and tested | server metadata and replay store |
 | Front-channel logout | Not implemented | must not be inferred |
 | Dynamic client registration | Not implemented | use governed admin plane |

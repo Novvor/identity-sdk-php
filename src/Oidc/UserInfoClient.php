@@ -28,37 +28,56 @@ final class UserInfoClient
         if ($isDpop && $dpopKey === null) {
             throw new OidcException('A DPoP-bound token requires its DPoP key.');
         }
-        $headers = [
-            'Accept' => 'application/json',
-            'Authorization' => ($isDpop ? 'DPoP' : 'Bearer').' '.$accessToken,
-        ];
-        if ($dpopKey !== null) {
-            $headers['DPoP'] = (new DpopProofFactory())->create($dpopKey, 'GET', $endpoint, $accessToken, $dpopNonce);
-        }
+        $nonce = $dpopNonce;
+        for ($attempt = 0; $attempt < 2; $attempt++) {
+            $headers = [
+                'Accept' => 'application/json',
+                'Authorization' => ($isDpop ? 'DPoP' : 'Bearer').' '.$accessToken,
+            ];
+            if ($dpopKey !== null) {
+                $headers['DPoP'] = (new DpopProofFactory())->create($dpopKey, 'GET', $endpoint, $accessToken, $nonce);
+            }
 
-        try {
-            $response = $this->http->request('GET', $endpoint, OidcHttpRequestOptions::strict(
-                $configuration->httpTimeoutSeconds,
-                $headers,
-                $correlationId,
-            ));
-        } catch (\Throwable $exception) {
-            throw new OidcException('OIDC UserInfo request failed.', 0, $exception);
-        }
-        $claims = json_decode((string) $response->getBody(), true);
-        if ($response->getStatusCode() !== 200 || ! is_array($claims) || ! is_string($claims['sub'] ?? null) || $claims['sub'] === '') {
+            try {
+                $response = $this->http->request('GET', $endpoint, OidcHttpRequestOptions::strict(
+                    $configuration->httpTimeoutSeconds,
+                    $headers,
+                    $correlationId,
+                ));
+            } catch (\Throwable $exception) {
+                throw new OidcException('OIDC UserInfo request failed.', 0, $exception);
+            }
+            $claims = OAuthJsonResponse::decode((string) $response->getBody());
+            $subject = $claims['sub'] ?? null;
+            if ($response->getStatusCode() === 200 && is_string($subject) && $subject !== '') {
+                break;
+            }
+
+            $challengedNonce = $dpopKey === null ? null : DpopNonceChallenge::from($response, $claims, $nonce);
+            if ($attempt === 0 && $challengedNonce !== null) {
+                $nonce = $challengedNonce;
+
+                continue;
+            }
+
             throw new OAuthEndpointException(
                 'OIDC UserInfo endpoint rejected the access token.',
-                is_array($claims) && is_string($claims['error'] ?? null) ? $claims['error'] : null,
-                is_array($claims) && is_string($claims['error_description'] ?? null) ? $claims['error_description'] : null,
+                is_string($claims['error'] ?? null) ? $claims['error'] : null,
+                is_string($claims['error_description'] ?? null) ? $claims['error_description'] : null,
                 $response->getHeaderLine('X-Correlation-ID') ?: $correlationId,
                 $response->getHeaderLine('DPoP-Nonce') ?: null,
             );
         }
-        if ($expectedSubject !== null && ! hash_equals($expectedSubject, $claims['sub'])) {
+
+        if ($claims === null || ! is_string($claims['sub'] ?? null) || $claims['sub'] === '') {
+            throw new OidcException('OIDC UserInfo endpoint returned an invalid response.');
+        }
+
+        $subject = $claims['sub'];
+        if ($expectedSubject !== null && ! hash_equals($expectedSubject, $subject)) {
             throw new OidcException('UserInfo subject does not match the ID token subject.');
         }
 
-        return new UserInfoResponse($claims['sub'], $claims);
+        return new UserInfoResponse($subject, $claims);
     }
 }

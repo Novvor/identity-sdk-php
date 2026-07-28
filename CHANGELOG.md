@@ -6,6 +6,8 @@
 - Add JARM validation pinned to RS256, exact issuer and client audience.
 - Require RFC 9207 `iss` and exact `state` on authorization responses.
 - Add DPoP proof creation with `htu`, `htm`, `jti`, `iat`, `ath` and nonce.
+- Retry one valid RFC 9449 `use_dpop_nonce` challenge at token, refresh and
+  UserInfo endpoints; repeated or malformed challenges fail closed.
 - Add interactive `private_key_jwt` client authentication.
 - Add typed refresh rotation, UserInfo, token introspection and revocation clients.
 - Bind refresh and UserInfo requests to DPoP keys and enforce UserInfo subject matching.

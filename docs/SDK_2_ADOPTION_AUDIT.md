@@ -55,7 +55,7 @@ these steps in controllers.
 | refresh rotation | yes | bound client | replacement refresh token |
 | UserInfo | yes | subject-bound | endpoint |
 | introspection/revocation | yes | bound clients | endpoints |
-| DPoP nonce auto retry | deferred | deferred | server challenge semantics |
+| DPoP nonce challenge | yes | delegated to core | `use_dpop_nonce` + `DPoP-Nonce` |
 | front-channel logout | no | no | do not advertise |
 | dynamic registration | no | no | use admin control plane |
 
