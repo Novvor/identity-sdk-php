@@ -7,6 +7,9 @@
 - Require RFC 9207 `iss` and exact `state` on authorization responses.
 - Add DPoP proof creation with `htu`, `htm`, `jti`, `iat`, `ath` and nonce.
 - Add interactive `private_key_jwt` client authentication.
+- Add typed refresh rotation, UserInfo, token introspection and revocation clients.
+- Bind refresh and UserInfo requests to DPoP keys and enforce UserInfo subject matching.
+- Surface OAuth errors with redacted correlation and DPoP nonce metadata.
 - Add an opt-in Novvor high-assurance profile with downgrade prevention.
 - Preserve 1.x secret/no-secret behavior through the `auto` compatibility mode.
 - Expand Discovery parsing without advertising capabilities on behalf of the

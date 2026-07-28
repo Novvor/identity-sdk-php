@@ -18,6 +18,10 @@ use Novvor\IdentitySdk\Oidc\JarmAuthorizationResponseValidator;
 use Novvor\IdentitySdk\Oidc\OidcClientConfiguration;
 use Novvor\IdentitySdk\Oidc\OidcException;
 use Novvor\IdentitySdk\Oidc\PushedAuthorizationClient;
+use Novvor\IdentitySdk\Oidc\RefreshTokenClient;
+use Novvor\IdentitySdk\Oidc\TokenIntrospectionClient;
+use Novvor\IdentitySdk\Oidc\TokenRevocationClient;
+use Novvor\IdentitySdk\Oidc\UserInfoClient;
 use PHPUnit\Framework\TestCase;
 
 final class EnterpriseOidcProfileTest extends TestCase
@@ -152,6 +156,105 @@ final class EnterpriseOidcProfileTest extends TestCase
         self::assertSame('legacy-secret', $form['client_secret']);
     }
 
+    public function test_refresh_rotation_requires_and_returns_a_new_refresh_token(): void
+    {
+        [$privateKey, $jwk] = $this->rsaKey();
+        $history = [];
+        $stack = HandlerStack::create(new MockHandler([new Response(200, [], json_encode([
+            'access_token' => 'access-2',
+            'refresh_token' => 'refresh-2',
+            'token_type' => 'DPoP',
+            'expires_in' => 300,
+            'scope' => 'openid profile',
+        ], JSON_THROW_ON_ERROR))]));
+        $stack->push(\GuzzleHttp\Middleware::history($history));
+        $tokens = (new RefreshTokenClient(new Client(['handler' => $stack])))->rotate(
+            $this->configuration($privateKey),
+            'refresh-1',
+            'correlation-refresh',
+            new DpopKey($privateKey, $jwk, 'RS256'),
+        );
+
+        self::assertSame('refresh-2', $tokens->refreshToken);
+        self::assertSame('DPoP', $tokens->tokenType);
+        self::assertSame('openid profile', $tokens->scope);
+        parse_str((string) $history[0]['request']->getBody(), $body);
+        self::assertSame('refresh_token', $body['grant_type']);
+        self::assertSame('refresh-1', $body['refresh_token']);
+        self::assertNotSame('', $history[0]['request']->getHeaderLine('DPoP'));
+    }
+
+    public function test_userinfo_binds_dpop_proof_and_checks_subject(): void
+    {
+        [$privateKey, $jwk] = $this->rsaKey();
+        $history = [];
+        $stack = HandlerStack::create(new MockHandler([new Response(200, [], '{"sub":"user-1","email":"user@example.com"}')]));
+        $stack->push(\GuzzleHttp\Middleware::history($history));
+
+        $result = (new UserInfoClient(new Client(['handler' => $stack])))->fetch(
+            $this->configuration($privateKey),
+            'access-1',
+            'DPoP',
+            'user-1',
+            'correlation-userinfo',
+            new DpopKey($privateKey, $jwk, 'RS256'),
+        );
+
+        self::assertSame('user-1', $result->subject);
+        self::assertSame('DPoP access-1', $history[0]['request']->getHeaderLine('Authorization'));
+        self::assertNotSame('', $history[0]['request']->getHeaderLine('DPoP'));
+        self::assertSame('correlation-userinfo', $history[0]['request']->getHeaderLine('X-Correlation-ID'));
+    }
+
+    public function test_userinfo_rejects_subject_substitution(): void
+    {
+        $client = new UserInfoClient($this->http([new Response(200, [], '{"sub":"attacker"}')]));
+        $this->expectException(OidcException::class);
+        $client->fetch($this->configuration(), 'access-1', expectedSubject: 'user-1');
+    }
+
+    public function test_introspection_uses_endpoint_specific_private_key_assertion(): void
+    {
+        [$privateKey] = $this->rsaKey();
+        $history = [];
+        $stack = HandlerStack::create(new MockHandler([new Response(200, [], '{"active":true,"sub":"user-1"}')]));
+        $stack->push(\GuzzleHttp\Middleware::history($history));
+
+        $result = (new TokenIntrospectionClient(new Client(['handler' => $stack])))->introspect(
+            $this->configuration($privateKey),
+            'access-1',
+            'access_token',
+        );
+
+        self::assertTrue($result->active);
+        parse_str((string) $history[0]['request']->getBody(), $body);
+        self::assertArrayHasKey('client_assertion', $body);
+        $clientAssertion = $body['client_assertion'];
+        if (! is_string($clientAssertion)) {
+            self::fail('Client assertion must be a JWT string.');
+        }
+        [, $claims] = $this->decode($clientAssertion);
+        self::assertSame('https://identity.example.com/oauth/introspect', $claims['aud']);
+    }
+
+    public function test_revocation_is_idempotent_for_success_response(): void
+    {
+        [$privateKey] = $this->rsaKey();
+        $history = [];
+        $stack = HandlerStack::create(new MockHandler([new Response(200)]));
+        $stack->push(\GuzzleHttp\Middleware::history($history));
+
+        (new TokenRevocationClient(new Client(['handler' => $stack])))->revoke(
+            $this->configuration($privateKey),
+            'refresh-1',
+            'refresh_token',
+        );
+
+        parse_str((string) $history[0]['request']->getBody(), $body);
+        self::assertSame('refresh_token', $body['token_type_hint']);
+        self::assertSame('refresh-1', $body['token']);
+    }
+
     private function configuration(?string $privateKey = null): OidcClientConfiguration
     {
         return new OidcClientConfiguration(
@@ -162,6 +265,9 @@ final class EnterpriseOidcProfileTest extends TestCase
             $privateKey,
             $privateKey === null ? null : 'client-key',
             profile: $privateKey === null ? 'standard' : 'novvor-high-assurance-v1',
+            userinfoEndpoint: 'https://identity.example.com/oauth/userinfo',
+            introspectionEndpoint: 'https://identity.example.com/oauth/introspect',
+            revocationEndpoint: 'https://identity.example.com/oauth/revoke',
         );
     }
 
