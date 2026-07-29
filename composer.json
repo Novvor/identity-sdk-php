@@ -7,7 +7,7 @@
         "php": "^8.2",
         "firebase/php-jwt": "^7.0",
         "guzzlehttp/guzzle": "^7.0",
-        "novvor/identity-contracts": "^1.0"
+        "novvor/identity-contracts": "^2.0"
     },
     "require-dev": {
         "phpstan/phpstan": "^2.1",
