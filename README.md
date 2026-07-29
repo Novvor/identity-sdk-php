@@ -4,6 +4,11 @@ Official server-side relying-party SDK for Novvor Cloud Identity. It provides OI
 discovery, Authorization Code plus PKCE, state and nonce validation, signed ID token
 validation, JWKS rotation, assurance claims, and logout validation.
 
+The upcoming 2.0 line also provides an opt-in high-assurance profile:
+Authorization Code + PKCE S256 + PAR + JARM + RFC 9207 + DPoP +
+`private_key_jwt`. It is designed for government and regulated enterprise
+integrations without weakening the interoperable standard profile.
+
 It is not an Identity server or an administrative API client.
 
 ## Installation
@@ -18,6 +23,27 @@ returned state before exchanging the code, and pass the expected nonce to the ID
 token validator. Never expose a client secret or token in browser code.
 
 The administrative API is intentionally excluded from this package.
+
+## Security profiles
+
+- `standard`: interoperable OIDC relying-party behavior. Existing 1.x
+  configurations remain compatible; `auto` uses `client_secret_post` only when
+  a secret was supplied.
+- `novvor-high-assurance-v1`: fail-closed profile requiring PAR, JARM,
+  `private_key_jwt`, RFC 9207 issuer binding and a DPoP-bound access token.
+
+Token, refresh and UserInfo clients automatically answer one valid RFC 9449
+`use_dpop_nonce` challenge. Repeated, unchanged, malformed or oversized nonce
+challenges fail closed, so a broken server cannot create an unbounded retry
+loop.
+
+Never infer high-assurance support from a successful login. Discover metadata,
+run `EnterpriseProfileValidator`, store the authorization transaction
+server-side, and process callbacks through `AuthorizationResponseProcessor`.
+See [the Laravel integration guide](docs/INTEGRATION_LARAVEL.md).
+The cross-package adoption audit and release gates are in
+[`docs/SDK_2_ADOPTION_AUDIT.md`](docs/SDK_2_ADOPTION_AUDIT.md) and
+[`docs/RELEASE_2_0_PLAN.md`](docs/RELEASE_2_0_PLAN.md).
 
 ## Workload authentication
 
@@ -45,3 +71,5 @@ Only explicit HTTPS endpoints are accepted. JWT signing is pinned to RS256, keys
 are resolved by `kid`, and issuer, audience, authorized party, nonce, time, and
 back-channel logout claims are validated. Consumers must prevent replay of logout
 `jti` values in their shared cache. See [`SECURITY.md`](SECURITY.md).
+The capability truth table and downgrade boundaries are documented in
+[`docs/SECURITY_PROFILE.md`](docs/SECURITY_PROFILE.md).

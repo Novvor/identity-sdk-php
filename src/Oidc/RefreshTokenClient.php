@@ -4,38 +4,30 @@ namespace Novvor\IdentitySdk\Oidc;
 
 use GuzzleHttp\ClientInterface;
 
-final class AuthorizationCodeClient
+final class RefreshTokenClient
 {
-    public function __construct(private readonly ClientInterface $http)
-    {
-    }
+    public function __construct(private readonly ClientInterface $http) {}
 
-    public function exchange(
+    public function rotate(
         OidcClientConfiguration $configuration,
-        string $code,
-        string $codeVerifier,
+        string $refreshToken,
         ?string $correlationId = null,
         ?DpopKey $dpopKey = null,
         ?string $dpopNonce = null,
-    ): OidcTokenSet
-    {
-        if ($code === '' || $codeVerifier === '') {
-            throw new OidcException('Authorization code and PKCE verifier are required.');
+    ): OidcTokenSet {
+        if ($refreshToken === '') {
+            throw new OidcException('Refresh token is required.');
         }
-
-        $form = [
-            'grant_type' => 'authorization_code',
-            'code' => $code,
-            'redirect_uri' => $configuration->redirectUri,
-            'client_id' => $configuration->clientId,
-            'code_verifier' => $codeVerifier,
-        ];
-        (new ClientAssertionFactory())->authenticate($configuration, $form);
-
         if ($configuration->profile === 'novvor-high-assurance-v1' && $dpopKey === null) {
             throw new OidcException('The high-assurance profile requires a DPoP key.');
         }
 
+        $form = [
+            'grant_type' => 'refresh_token',
+            'refresh_token' => $refreshToken,
+            'client_id' => $configuration->clientId,
+        ];
+        (new ClientAssertionFactory())->authenticate($configuration, $form);
         $nonce = $dpopNonce;
         for ($attempt = 0; $attempt < 2; $attempt++) {
             $headers = ['Accept' => 'application/json'];
@@ -45,15 +37,11 @@ final class AuthorizationCodeClient
 
             try {
                 $response = $this->http->request('POST', $configuration->tokenEndpoint, [
-                    ...OidcHttpRequestOptions::strict(
-                        $configuration->httpTimeoutSeconds,
-                        $headers,
-                        $correlationId,
-                    ),
+                    ...OidcHttpRequestOptions::strict($configuration->httpTimeoutSeconds, $headers, $correlationId),
                     'form_params' => $form,
                 ]);
             } catch (\Throwable $exception) {
-                throw new OidcException('OIDC token exchange failed.', 0, $exception);
+                throw new OidcException('OIDC refresh token request failed.', 0, $exception);
             }
 
             $payload = OAuthJsonResponse::decode((string) $response->getBody());
@@ -69,7 +57,7 @@ final class AuthorizationCodeClient
             }
 
             throw new OAuthEndpointException(
-                'OIDC token endpoint rejected the authorization code.',
+                'OIDC token endpoint rejected the refresh token.',
                 is_string($payload['error'] ?? null) ? $payload['error'] : null,
                 is_string($payload['error_description'] ?? null) ? $payload['error_description'] : null,
                 $response->getHeaderLine('X-Correlation-ID') ?: $correlationId,
@@ -78,15 +66,17 @@ final class AuthorizationCodeClient
         }
 
         if ($payload === null) {
-            throw new OidcException('OIDC token endpoint returned an invalid response.');
+            throw new OidcException('OIDC token endpoint returned an invalid refresh response.');
         }
 
-        $tokenSet = TokenEndpointResponse::tokenSet($payload);
-        $tokenType = $tokenSet->tokenType;
-        if ($configuration->profile === 'novvor-high-assurance-v1' && strcasecmp($tokenType, 'DPoP') !== 0) {
+        $tokens = TokenEndpointResponse::tokenSet($payload, false);
+        if ($tokens->refreshToken === null) {
+            throw new OidcException('Refresh rotation did not return a replacement refresh token.');
+        }
+        if ($configuration->profile === 'novvor-high-assurance-v1' && strcasecmp($tokens->tokenType, 'DPoP') !== 0) {
             throw new OidcException('The high-assurance profile requires a DPoP-bound access token.');
         }
 
-        return $tokenSet;
+        return $tokens;
     }
 }
