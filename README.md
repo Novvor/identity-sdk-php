@@ -34,7 +34,6 @@ the opaque handle; they are never the authority for the return destination.
 
 The included `InMemoryLoginIntentStore` exists only for tests and local
 experiments. It is intentionally unsuitable for multiple processes or nodes.
-
 ## Security profiles
 
 - `standard`: interoperable OIDC relying-party behavior. Existing 1.x
@@ -52,10 +51,11 @@ Never infer high-assurance support from a successful login. Discover metadata,
 run `EnterpriseProfileValidator`, store the authorization transaction
 server-side, and process callbacks through `AuthorizationResponseProcessor`.
 See [the Laravel integration guide](docs/INTEGRATION_LARAVEL.md).
-There is not yet a published first-party Laravel adapter package. Laravel
-applications must keep protocol orchestration in a tested application adapter
-that follows [the Laravel integration guide](docs/INTEGRATION_LARAVEL.md), not
-in controllers. The cross-package adoption audit and 2.5 release gates are in
+The first-party `novvor/identity-laravel` adapter is published for SDK 2.0. Its
+2.5 release must adopt durable login intents before consumers can claim the
+2.5 integration contract. Until then Laravel applications must keep protocol
+orchestration in one tested application adapter, never in controllers. The
+cross-package adoption audit and 2.5 release gates are in
 [`docs/SDK_2_ADOPTION_AUDIT.md`](docs/SDK_2_ADOPTION_AUDIT.md) and
 [`docs/RELEASE_2_5_PLAN.md`](docs/RELEASE_2_5_PLAN.md).
 

@@ -9,10 +9,10 @@ framework-neutral backend consumers. It now includes durable, opaque login
 intents so applications can keep a return destination, PKCE verifier, nonce and
 state on the server under exact-once consumption semantics.
 
-There is no published `novvor/identity-laravel` package in the current release
-graph. Therefore a consumer-wide Laravel upgrade is not yet releasable as a
-supported product contract: each Laravel app must retain one tested integration
-service, following the integration guide, until that adapter is published.
+The first-party Laravel adapter exists and is released as `v2.0.1`. It uses an
+encrypted Laravel session transaction and has not adopted the SDK 2.5 durable,
+opaque login-intent contract. Therefore a consumer-wide Laravel upgrade to 2.5
+is not releasable until the adapter is updated, tested and released.
 
 This is `PASS_LOCAL_INTEGRATION`, not OpenID certification or production proof.
 
@@ -22,7 +22,7 @@ This is `PASS_LOCAL_INTEGRATION`, not OpenID certification or production proof.
 |---|---|---|
 | `identity-contracts` | claim names and security profiles | transport, secrets |
 | `identity-sdk-php` | framework-neutral OAuth/OIDC protocol | Laravel session, admin APIs |
-| `identity-laravel` (planned) | Laravel config, DI and transaction lifecycle | tenant authorization policy |
+| `identity-laravel` | Laravel config, DI and transaction lifecycle; published `v2.0.1`, 2.5 durable-intent upgrade pending | tenant authorization policy |
 | `identity-admin-sdk-php` | privileged control-plane transport | user login/session logic |
 | `identity-sdk-testing` | truthful fakes and negative fixtures | real keys, tokens, customer data |
 
@@ -42,10 +42,10 @@ This is `PASS_LOCAL_INTEGRATION`, not OpenID certification or production proof.
 11. Bind UserInfo `sub` to the ID Token `sub`.
 12. Map tenant and permissions in the application, then regenerate its session.
 
-Laravel consumers must use one shared application integration service rather
-than reproduce these steps in controllers. They can adopt a published
-`novvor/identity-laravel` package only after it exists and passes its own
-Composer, negative-flow and reference-app gates.
+Laravel consumers must use the published adapter for SDK 2.0 or one tested
+application integration service. The adapter requires a 2.5 update and release
+against `LoginIntentManager` before it can be treated as the consumer-wide 2.5
+contract; controllers must not reconstruct this flow.
 
 ## Capability truth
 
@@ -69,8 +69,8 @@ Composer, negative-flow and reference-app gates.
 ## Remaining release blockers
 
 1. Complete the 2.5 core release gate and publish an immutable `v2.5.0` tag.
-2. Publish and test the first-party Laravel adapter, or retain an explicitly
-   supported app integration service in every Laravel consumer.
+2. Update, release and test the first-party Laravel adapter against durable
+   `LoginIntentManager` storage; retain its current 2.0 contract until then.
 3. Run a clean Composer install using tags only.
 4. Validate Platform and FilaSign as reference consumers end to end.
 5. Migrate Console from the v1 line as a separate, explicitly reviewed change.

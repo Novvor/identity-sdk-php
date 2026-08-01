@@ -50,5 +50,6 @@ intent must fail closed.
 - Treat Identity unavailability as a bounded error surface, not a redirect
   loop.
 - Readiness must verify configuration and key presence without exposing values.
-- Keep this orchestration behind a single application service until a published
-  `novvor/identity-laravel` adapter exists; never duplicate it in controllers.
+- Use `novvor/identity-laravel` v2.0.1 for SDK 2.0 integrations. Do not claim
+  its 2.5 contract until its durable-login-intent upgrade is published; never
+  duplicate protocol orchestration in controllers.
