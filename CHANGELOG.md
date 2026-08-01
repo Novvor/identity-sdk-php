@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.5.0 - Unreleased
+
+- Add durable, opaque, exact-once login intents for state, nonce, PKCE verifier,
+  allowlisted return paths, browser binding and correlation IDs.
+- Require a shared atomic `LoginIntentStore` outside test and local-only
+  experiments; the in-memory store is explicitly unsuitable for production.
+- Preserve the SDK 2.0 protocol surface while aligning the 2.5 Laravel guidance
+  with the published adapter's pending durable-intent upgrade.
+
 ## 2.0.0 - Unreleased
 
 - Add typed PAR transactions and strict HTTPS transport.

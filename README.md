@@ -4,7 +4,7 @@ Official server-side relying-party SDK for Novvor Cloud Identity. It provides OI
 discovery, Authorization Code plus PKCE, state and nonce validation, signed ID token
 validation, JWKS rotation, assurance claims, and logout validation.
 
-The upcoming 2.0 line also provides an opt-in high-assurance profile:
+The 2.x line provides an opt-in high-assurance profile:
 Authorization Code + PKCE S256 + PAR + JARM + RFC 9207 + DPoP +
 `private_key_jwt`. It is designed for government and regulated enterprise
 integrations without weakening the interoperable standard profile.
@@ -24,6 +24,16 @@ token validator. Never expose a client secret or token in browser code.
 
 The administrative API is intentionally excluded from this package.
 
+## Durable login intents (SDK 2.5)
+
+`LoginIntentManager` preserves the internal application destination together
+with `state`, `nonce`, and the PKCE verifier under an opaque, one-time handle.
+Production applications must implement `LoginIntentStore` using a shared,
+transactional database or cache. Cookies and callback query strings carry only
+the opaque handle; they are never the authority for the return destination.
+
+The included `InMemoryLoginIntentStore` exists only for tests and local
+experiments. It is intentionally unsuitable for multiple processes or nodes.
 ## Security profiles
 
 - `standard`: interoperable OIDC relying-party behavior. Existing 1.x
@@ -41,9 +51,13 @@ Never infer high-assurance support from a successful login. Discover metadata,
 run `EnterpriseProfileValidator`, store the authorization transaction
 server-side, and process callbacks through `AuthorizationResponseProcessor`.
 See [the Laravel integration guide](docs/INTEGRATION_LARAVEL.md).
-The cross-package adoption audit and release gates are in
+The first-party `novvor/identity-laravel` adapter is published for SDK 2.0. Its
+2.5 release must adopt durable login intents before consumers can claim the
+2.5 integration contract. Until then Laravel applications must keep protocol
+orchestration in one tested application adapter, never in controllers. The
+cross-package adoption audit and 2.5 release gates are in
 [`docs/SDK_2_ADOPTION_AUDIT.md`](docs/SDK_2_ADOPTION_AUDIT.md) and
-[`docs/RELEASE_2_0_PLAN.md`](docs/RELEASE_2_0_PLAN.md).
+[`docs/RELEASE_2_5_PLAN.md`](docs/RELEASE_2_5_PLAN.md).
 
 ## Workload authentication
 
