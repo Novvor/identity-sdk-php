@@ -1,6 +1,6 @@
 {
     "name": "novvor/identity-sdk-php",
-    "description": "Novvor Cloud Identity relying-party SDK for confidential server-side PHP applications.",
+    "description": "Novvor Cloud Identity SDK 2.5 for confidential server-side PHP applications.",
     "type": "library",
     "license": "Apache-2.0",
     "require": {

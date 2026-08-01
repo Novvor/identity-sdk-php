@@ -1,0 +1,54 @@
+# Identity SDK 2.5 release plan
+
+Date: 2026-08-01
+
+## Release status
+
+| Item | Status |
+|---|---|
+| `novvor/identity-contracts` v2.0.0 | Published baseline |
+| `novvor/identity-sdk-php` v2.0.0 | Published baseline |
+| SDK 2.5 core branch | Candidate; not tagged |
+| First-party Laravel adapter | Not published |
+| Platform and FilaSign runtime upgrade | Not yet validated against 2.5 |
+| Console v1-to-v2 migration | Not started |
+
+The absence of a Laravel adapter is a consumer rollout blocker, not a reason to
+weaken the core release gate or duplicate protocol logic in controllers.
+
+## Core release gate
+
+Before tagging `v2.5.0`, the candidate must pass:
+
+1. `composer validate --strict`.
+2. A clean `composer install` using only published dependency tags.
+3. PHPUnit, PHPStan, Composer audit and `git diff --check`.
+4. Positive and negative tests for login-intent exact-once consumption, browser
+   binding, expiry, state, nonce, PKCE, JARM, PAR, DPoP, RFC 9207 and token
+   validation.
+5. A changelog that names any non-compatible behavior.
+6. An immutable annotated Git tag and a clean installation test from that tag.
+
+## Consumer order
+
+1. Publish the core SDK `v2.5.0` only after the core gate is green.
+2. Publish a Laravel integration package that uses durable login intents and
+   makes the transaction lifecycle a single supported boundary.
+3. Upgrade Enix Platform and FilaSign in independent branches; run their
+   browser and negative callback flows against the new package.
+4. Migrate Enix Console from `^1.1` to `^2.5` in a separate review because it
+   is an authentication-boundary change, not a dependency bump.
+5. Verify each deployment independently before the next consumer is changed.
+
+## Rollback
+
+Consumers retain their exact Composer lock until their independent runtime
+validation passes. A failed consumer rollout is rolled back by restoring its
+prior lockfile and deployment artifact; the immutable SDK tag is not rewritten.
+
+## Truthful readiness
+
+`identity-sdk-php` may become `PASS_PACKAGE_RELEASE` after its core gate. The
+ecosystem becomes `PASS_RUNTIME` only after each consuming application proves
+the configured OIDC flow, tenant binding, callbacks and negative cases at
+runtime.

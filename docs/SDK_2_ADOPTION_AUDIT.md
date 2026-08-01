@@ -1,13 +1,18 @@
-# Identity SDK 2.0 adoption audit
+# Identity SDK 2.5 adoption audit
 
 Date: 2026-07-28
 
 ## Executive verdict
 
-The PHP core now covers the relying-party protocol surface needed by Laravel
-and framework-neutral backend consumers. Adoption was previously fragile
-because consumers had to assemble transaction state and advanced protocol
-features themselves. The official Laravel adapter now owns that orchestration.
+The PHP core covers the relying-party protocol surface needed by Laravel and
+framework-neutral backend consumers. It now includes durable, opaque login
+intents so applications can keep a return destination, PKCE verifier, nonce and
+state on the server under exact-once consumption semantics.
+
+There is no published `novvor/identity-laravel` package in the current release
+graph. Therefore a consumer-wide Laravel upgrade is not yet releasable as a
+supported product contract: each Laravel app must retain one tested integration
+service, following the integration guide, until that adapter is published.
 
 This is `PASS_LOCAL_INTEGRATION`, not OpenID certification or production proof.
 
@@ -17,7 +22,7 @@ This is `PASS_LOCAL_INTEGRATION`, not OpenID certification or production proof.
 |---|---|---|
 | `identity-contracts` | claim names and security profiles | transport, secrets |
 | `identity-sdk-php` | framework-neutral OAuth/OIDC protocol | Laravel session, admin APIs |
-| `identity-laravel` | Laravel config, DI and transaction lifecycle | tenant authorization policy |
+| `identity-laravel` (planned) | Laravel config, DI and transaction lifecycle | tenant authorization policy |
 | `identity-admin-sdk-php` | privileged control-plane transport | user login/session logic |
 | `identity-sdk-testing` | truthful fakes and negative fixtures | real keys, tokens, customer data |
 
@@ -37,21 +42,23 @@ This is `PASS_LOCAL_INTEGRATION`, not OpenID certification or production proof.
 11. Bind UserInfo `sub` to the ID Token `sub`.
 12. Map tenant and permissions in the application, then regenerate its session.
 
-Laravel consumers should use `novvor/identity-laravel` rather than reproduce
-these steps in controllers.
+Laravel consumers must use one shared application integration service rather
+than reproduce these steps in controllers. They can adopt a published
+`novvor/identity-laravel` package only after it exists and passes its own
+Composer, negative-flow and reference-app gates.
 
 ## Capability truth
 
-| Capability | Core | Laravel adapter | Server evidence required |
+| Capability | Core | Laravel integration boundary | Server evidence required |
 |---|---:|---:|---|
-| Authorization Code | yes | orchestrated | response type |
-| PKCE S256 | yes | orchestrated | S256 metadata |
-| state / nonce | yes | encrypted session | runtime callback |
-| RFC 9207 | yes | enforced | issuer parameter |
-| PAR | yes | orchestrated | PAR endpoint |
-| JARM | yes | orchestrated | query.jwt + RS256 |
-| DPoP | yes | per-session ES256 key | ES256 + DPoP token |
-| private_key_jwt | yes | configured | registered public key |
+| Authorization Code | yes | shared app service required | response type |
+| PKCE S256 | yes | shared app service required | S256 metadata |
+| state / nonce | yes | durable login intent required | runtime callback |
+| RFC 9207 | yes | shared app service required | issuer parameter |
+| PAR | yes | shared app service required | PAR endpoint |
+| JARM | yes | shared app service required | query.jwt + RS256 |
+| DPoP | yes | per-session ES256 key required | ES256 + DPoP token |
+| private_key_jwt | yes | configured by app | registered public key |
 | refresh rotation | yes | bound client | replacement refresh token |
 | UserInfo | yes | subject-bound | endpoint |
 | introspection/revocation | yes | bound clients | endpoints |
@@ -61,13 +68,13 @@ these steps in controllers.
 
 ## Remaining release blockers
 
-1. Tag `identity-contracts` 2.0.
-2. Tag `identity-sdk-php` 2.0.
-3. Replace the Laravel adapter's temporary Draft-branch constraint with `^2.0`.
-4. Tag `identity-sdk-testing` and `identity-admin-sdk-php` 2.0.
-5. Run a clean Composer install using tags only.
-6. Validate one Laravel reference consumer end to end.
-7. Run negative issuer, callback replay, tenant mismatch and key-rotation tests.
-8. Validate staging runtime and an external OpenID conformance profile.
+1. Complete the 2.5 core release gate and publish an immutable `v2.5.0` tag.
+2. Publish and test the first-party Laravel adapter, or retain an explicitly
+   supported app integration service in every Laravel consumer.
+3. Run a clean Composer install using tags only.
+4. Validate Platform and FilaSign as reference consumers end to end.
+5. Migrate Console from the v1 line as a separate, explicitly reviewed change.
+6. Run negative issuer, callback replay, tenant mismatch and key-rotation tests.
+7. Validate staging runtime and an external OpenID conformance profile.
 
 No package should claim `PASS_RUNTIME` until those external gates have evidence.
