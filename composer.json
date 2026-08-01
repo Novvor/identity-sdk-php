@@ -27,6 +27,13 @@
     "prefer-stable": true,
     "scripts": {
         "analyse": "phpstan analyse --no-progress",
-        "test": "phpunit"
+        "test": "phpunit",
+        "verify": [
+            "@composer validate --strict",
+            "@test",
+            "@analyse",
+            "@composer audit",
+            "git diff --check"
+        ]
     }
 }

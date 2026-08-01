@@ -23,12 +23,17 @@ Before tagging `v2.5.0`, the candidate must pass:
 
 1. `composer validate --strict`.
 2. A clean `composer install` using only published dependency tags.
-3. PHPUnit, PHPStan, Composer audit and `git diff --check`.
+3. `composer verify` (PHPUnit, PHPStan, Composer audit and `git diff --check`).
 4. Positive and negative tests for login-intent exact-once consumption, browser
    binding, expiry, state, nonce, PKCE, JARM, PAR, DPoP, RFC 9207 and token
    validation.
 5. A changelog that names any non-compatible behavior.
 6. An immutable annotated Git tag and a clean installation test from that tag.
+
+The `verify` script is the canonical local and CI-equivalent preflight. The
+quality workflow also runs for immutable version tags so the release evidence
+remains attached to the exact tagged source. A tag is not a deployment or
+consumer-rollout approval.
 
 ## Consumer order
 
