@@ -18,6 +18,11 @@
             "Novvor\\IdentitySdk\\": "src/"
         }
     },
+    "extra": {
+        "branch-alias": {
+            "dev-codex/identity-sdk-2": "2.5.x-dev"
+        }
+    },
     "minimum-stability": "stable",
     "prefer-stable": true,
     "scripts": {
