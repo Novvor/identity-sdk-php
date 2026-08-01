@@ -9,12 +9,13 @@ Date: 2026-08-01
 | `novvor/identity-contracts` v2.0.0 | Published baseline |
 | `novvor/identity-sdk-php` v2.0.0 | Published baseline |
 | SDK 2.5 core branch | Candidate; not tagged |
-| First-party Laravel adapter | Not published |
+| First-party Laravel adapter | `v2.0.1` published; 2.5 durable-intent upgrade pending |
 | Platform and FilaSign runtime upgrade | Not yet validated against 2.5 |
 | Console v1-to-v2 migration | Not started |
 
-The absence of a Laravel adapter is a consumer rollout blocker, not a reason to
-weaken the core release gate or duplicate protocol logic in controllers.
+The published adapter is an SDK 2.0 integration boundary. Its missing 2.5
+durable-intent capability is a consumer rollout blocker, not a reason to weaken
+the core release gate or duplicate protocol logic in controllers.
 
 ## Core release gate
 
