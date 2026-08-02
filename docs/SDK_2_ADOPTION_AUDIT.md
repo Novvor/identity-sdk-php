@@ -68,13 +68,12 @@ contract; controllers must not reconstruct this flow.
 
 ## Remaining release blockers
 
-1. Complete the 2.5 core release gate and publish an immutable `v2.5.0` tag.
-2. Update, release and test the first-party Laravel adapter against durable
+1. Update, release and test the first-party Laravel adapter against durable
    `LoginIntentManager` storage; retain its current 2.0 contract until then.
-3. Run a clean Composer install using tags only.
-4. Validate Platform and FilaSign as reference consumers end to end.
-5. Migrate Console from the v1 line as a separate, explicitly reviewed change.
-6. Run negative issuer, callback replay, tenant mismatch and key-rotation tests.
-7. Validate staging runtime and an external OpenID conformance profile.
+2. Run a clean Composer install using tags only.
+3. Validate Platform and FilaSign as reference consumers end to end.
+4. Migrate Console from the v1 line as a separate, explicitly reviewed change.
+5. Run negative issuer, callback replay, tenant mismatch and key-rotation tests.
+6. Validate staging runtime and an external OpenID conformance profile.
 
 No package should claim `PASS_RUNTIME` until those external gates have evidence.

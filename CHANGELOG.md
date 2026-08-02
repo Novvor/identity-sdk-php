@@ -6,7 +6,7 @@
   Laravel integration handoffs, including an explicit shared intent-cache
   store. The SDK never writes application `.env` files.
 
-## 2.5.0 - Unreleased
+## 2.5.0 - 2026-08-01
 
 - Add durable, opaque, exact-once login intents for state, nonce, PKCE verifier,
   allowlisted return paths, browser binding and correlation IDs.

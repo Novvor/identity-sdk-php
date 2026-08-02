@@ -8,7 +8,7 @@ Date: 2026-08-01
 |---|---|
 | `novvor/identity-contracts` v2.0.0 | Published baseline |
 | `novvor/identity-sdk-php` v2.0.0 | Published baseline |
-| SDK 2.5 core branch | Candidate; not tagged |
+| SDK 2.5 core | Published as immutable `v2.5.0` |
 | First-party Laravel adapter | `v2.0.1` published; 2.5 durable-intent upgrade pending |
 | Platform and FilaSign runtime upgrade | Not yet validated against 2.5 |
 | Console v1-to-v2 migration | Not started |
@@ -19,7 +19,7 @@ the core release gate or duplicate protocol logic in controllers.
 
 ## Core release gate
 
-Before tagging `v2.5.0`, the candidate must pass:
+The `v2.5.0` candidate passed the following gate before its immutable tag:
 
 1. `composer validate --strict`.
 2. A clean `composer install` using only published dependency tags.
@@ -37,14 +37,13 @@ consumer-rollout approval.
 
 ## Consumer order
 
-1. Publish the core SDK `v2.5.0` only after the core gate is green.
-2. Publish a Laravel integration package that uses durable login intents and
+1. Publish a Laravel integration package that uses durable login intents and
    makes the transaction lifecycle a single supported boundary.
-3. Upgrade Enix Platform and FilaSign in independent branches; run their
+2. Upgrade Enix Platform and FilaSign in independent branches; run their
    browser and negative callback flows against the new package.
-4. Migrate Enix Console from `^1.1` to `^2.5` in a separate review because it
+3. Migrate Enix Console from `^1.1` to `^2.5` in a separate review because it
    is an authentication-boundary change, not a dependency bump.
-5. Verify each deployment independently before the next consumer is changed.
+4. Verify each deployment independently before the next consumer is changed.
 
 ## Rollback
 
