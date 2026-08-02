@@ -42,6 +42,35 @@ final readonly class OidcDiscoveryDocument
         );
     }
 
+    /**
+     * @param array<int, string> $scopes
+     */
+    public function environmentTemplate(
+        string $clientId,
+        string $redirectUri,
+        array $scopes = ['openid', 'profile', 'email'],
+        string $profile = 'standard',
+    ): OidcEnvironmentTemplate {
+        if ($profile === 'novvor-high-assurance-v1' && ! $this->supportsHighAssuranceProfile()) {
+            throw new OidcException('Identity Discovery does not prove the requested high-assurance profile.');
+        }
+
+        $configuration = $this->configureClient($clientId, $redirectUri);
+
+        return new OidcEnvironmentTemplate(
+            issuer: $configuration->issuer,
+            clientId: $configuration->clientId,
+            redirectUri: $configuration->redirectUri,
+            authorizationEndpoint: $configuration->authorizationEndpoint,
+            tokenEndpoint: $configuration->tokenEndpoint,
+            jwksUri: $configuration->jwksUri,
+            scopes: $scopes,
+            profile: $profile,
+            clientAuthenticationMethod: $profile === 'novvor-high-assurance-v1' ? 'private_key_jwt' : 'auto',
+            userinfoEndpoint: $this->userinfoEndpoint,
+        );
+    }
+
     public function supportsHighAssuranceProfile(): bool
     {
         return $this->pushedAuthorizationRequestEndpoint !== null

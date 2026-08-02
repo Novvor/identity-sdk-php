@@ -1,5 +1,11 @@
 # Changelog
 
+## Next
+
+- Add a Discovery-derived, non-secret environment template for reviewed
+  Laravel integration handoffs, including an explicit shared intent-cache
+  store. The SDK never writes application `.env` files.
+
 ## 2.5.0 - Unreleased
 
 - Add durable, opaque, exact-once login intents for state, nonce, PKCE verifier,
