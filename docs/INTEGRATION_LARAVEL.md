@@ -10,6 +10,34 @@ Bind one `OidcClientConfiguration` from `config/identity.php`. Do not call
 `env()` in controllers and do not provide `.test`, localhost or HTTP defaults
 when `APP_ENV=production`.
 
+## Public configuration handoff
+
+After validating Discovery and registering the exact redirect URI, an installer
+or control-plane UI may generate copy/paste values without ever touching the
+application's `.env` file:
+
+```php
+$discovery = $oidcDiscoveryClient->fetch('https://identity.example.com');
+$template = $discovery->environmentTemplate(
+    clientId: 'your-client-id',
+    redirectUri: 'https://app.example.com/auth/oidc/callback',
+);
+
+// Display or save this as a reviewed deployment artifact, not as a secret.
+$publicEnvironment = $template->toLaravelDotenv(intentCacheStore: 'redis');
+```
+
+`toLaravelDotenv()` emits the exact public variable names consumed by
+`novvor/identity-laravel`, including `IDENTITY_OIDC_INTENT_CACHE_STORE`. The
+store name is mandatory and supplied by the deployment owner because Discovery
+cannot prove that a particular Laravel cache driver is shared and atomic. Use a
+reviewed shared store such as Redis in multi-node environments.
+
+The template contains the issuer, endpoints, client ID, redirect URI, scopes
+and selected profile. It intentionally excludes client secrets and private key
+material. A deployment operator must place those only in the environment's
+secret manager, then run the application's configuration/readiness gate.
+
 Use `LoginIntentManager` with a shared, atomic `LoginIntentStore` to retain
 `state`, `nonce`, `code_verifier`, the allowlisted intended destination and a
 correlation ID. The browser-facing Laravel session may retain only the opaque
@@ -50,6 +78,7 @@ intent must fail closed.
 - Treat Identity unavailability as a bounded error surface, not a redirect
   loop.
 - Readiness must verify configuration and key presence without exposing values.
-- Use `novvor/identity-laravel` v2.0.1 for SDK 2.0 integrations. Do not claim
-  its 2.5 contract until its durable-login-intent upgrade is published; never
-  duplicate protocol orchestration in controllers.
+- Use an adapter release that requires `novvor/identity-sdk-php ^2.5` and
+  exposes durable opaque login intents. Do not duplicate protocol
+  orchestration in controllers or place PKCE, nonce, DPoP or PAR state in a
+  browser session.
